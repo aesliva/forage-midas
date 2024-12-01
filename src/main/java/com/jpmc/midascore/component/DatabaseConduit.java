@@ -3,22 +3,28 @@ package com.jpmc.midascore.component;
 import com.jpmc.midascore.entity.TransactionRecord;
 import com.jpmc.midascore.entity.UserRecord;
 import com.jpmc.midascore.foundation.Transaction;
+import com.jpmc.midascore.foundation.Incentive;
 import com.jpmc.midascore.repository.TransactionRepository;
 import com.jpmc.midascore.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 @Component
 public class DatabaseConduit {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConduit.class);
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
+    private final RestTemplate restTemplate;
+    private static final String INCENTIVE_URL = "http://localhost:8080/incentive";
 
-    public DatabaseConduit(UserRepository userRepository, TransactionRepository transactionRepository) {
+    public DatabaseConduit(UserRepository userRepository, TransactionRepository transactionRepository,
+            RestTemplate restTemplate) {
         this.userRepository = userRepository;
         this.transactionRepository = transactionRepository;
+        this.restTemplate = restTemplate;
     }
 
     public void save(UserRecord userRecord) {
@@ -35,16 +41,21 @@ public class DatabaseConduit {
             return false;
         }
 
+        // Get incentive amount
+        Incentive incentive = restTemplate.postForObject(INCENTIVE_URL, transaction, Incentive.class);
+        float incentiveAmount = (incentive != null) ? incentive.getAmount() : 0;
+
         // Update balances
         sender.setBalance(sender.getBalance() - transaction.getAmount());
-        recipient.setBalance(recipient.getBalance() + transaction.getAmount());
+        recipient.setBalance(recipient.getBalance() + transaction.getAmount() + incentiveAmount);
 
         // Save records
         userRepository.save(sender);
         userRepository.save(recipient);
 
         // Record transaction
-        TransactionRecord transactionRecord = new TransactionRecord(sender, recipient, transaction.getAmount());
+        TransactionRecord transactionRecord = new TransactionRecord(sender, recipient, transaction.getAmount(),
+                incentiveAmount);
         transactionRepository.save(transactionRecord);
 
         return true;
