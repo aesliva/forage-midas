@@ -60,4 +60,14 @@ public class DatabaseConduit {
                 recipient != null &&
                 sender.getBalance() >= amount;
     }
+
+    // Find user by name to find Waldorf
+    public UserRecord findUserByName(String name) {
+        for (UserRecord user : userRepository.findAll()) {
+            if (user.getName().equals(name)) {
+                return user;
+            }
+        }
+        return null;
+    }
 }
