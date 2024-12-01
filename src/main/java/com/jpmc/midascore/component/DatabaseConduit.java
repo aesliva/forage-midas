@@ -81,4 +81,8 @@ public class DatabaseConduit {
         }
         return null;
     }
+
+    public UserRecord findUserById(Long userId) {
+        return userRepository.findById(userId).orElse(null);
+    }
 }
